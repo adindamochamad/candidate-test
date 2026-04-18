@@ -1,97 +1,178 @@
 'use strict';
 
 function LayupDrawer() {
-    /**
-     * Canvas element
-     */
     this.canvas = null;
     this.ctx = null;
     this.images = {};
 }
 
 LayupDrawer.prototype = {
-    /**
-     * Configure the canvas
-     *
-     * @param {HTMLCanvasElement} canvas  Canvas element
-     */
     init : function (canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        // Load images
+        var self = this;
+        function redraw() {
+            if (self._lastLayup) {
+                self.drawLayup(self._lastLayup);
+            }
+        }
+
         this.images.parallel = new Image();
-        this.images.parallel.src = 'images/parallel-grain-0.jpg';
-        
+        this.images.parallel.addEventListener('load', redraw);
+        this.images.parallel.src = 'images/paralel-grain-0.jpg';
+
         this.images.perpendicular = new Image();
+        this.images.perpendicular.addEventListener('load', redraw);
         this.images.perpendicular.src = 'images/perpendicular-grain-90.jpg';
     },
 
-    /**
-     * Draw a layup configuration on the canvas
-     *
-     * @param {Object} layup Layup object structure
-     * @param {Number} length Layup length in mm
-     */
-    drawLayup : function (layup, length) {
+    drawLayerDivider : function (x, y, w) {
+        var ctx = this.ctx;
+        var r = 2.5;
+        ctx.strokeStyle = '#76b82a';
+        ctx.fillStyle = '#76b82a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + w, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    drawAxes : function (opts) {
+        var ctx = this.ctx;
+        var slabLeft = opts.slabLeft;
+        var slabBottom = opts.slabBottom;
+        var slabW = opts.slabWidth;
+        var yMaxMm = opts.yMaxMm;
+        var mmToPxY = opts.mmToPxY;
+        var xRangeMm = opts.xRangeMm;
+
+        var yAxisX = slabLeft - 12;
+        var yAxisTop = slabBottom - yMaxMm * mmToPxY;
+
+        ctx.strokeStyle = '#999';
+        ctx.fillStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        ctx.beginPath();
+        ctx.moveTo(yAxisX, slabBottom);
+        ctx.lineTo(yAxisX, yAxisTop - 4);
+        ctx.stroke();
+
+        for (var yMm = 0; yMm <= yMaxMm; yMm += 60) {
+            var ty = slabBottom - yMm * mmToPxY;
+            ctx.beginPath();
+            ctx.moveTo(yAxisX, ty);
+            ctx.lineTo(yAxisX - 5, ty);
+            ctx.stroke();
+            ctx.fillText(String(yMm), yAxisX - 8, ty);
+        }
+
+        ctx.save();
+        ctx.translate(yAxisX - 42, (slabBottom + yAxisTop) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.font = '12px Arial';
+        ctx.fillText('Slab Thickness (mm)', 0, 0);
+        ctx.restore();
+
+        var xAxisY = slabBottom + 14;
+        ctx.beginPath();
+        ctx.moveTo(slabLeft, xAxisY);
+        ctx.lineTo(slabLeft + slabW + 8, xAxisY);
+        ctx.stroke();
+
+        var mmPerPxX = xRangeMm / slabW;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = '11px Arial';
+        for (var xMm = 0; xMm <= xRangeMm; xMm += 30) {
+            var tx = slabLeft + xMm / mmPerPxX;
+            ctx.beginPath();
+            ctx.moveTo(tx, xAxisY);
+            ctx.lineTo(tx, xAxisY + 5);
+            ctx.stroke();
+            ctx.fillText(String(xMm), tx, xAxisY + 8);
+        }
+
+        ctx.font = '12px Arial';
+        ctx.fillText('Primary Direction', slabLeft + slabW / 2, xAxisY + 26);
+    },
+
+    drawLayup : function (layup) {
         if (!this.ctx) return;
 
-        const layers = layup.layers;
-        const scale = 2; // 1mm = 2px
-        const startX = 80;
-        const drawWidth = length * 0.5; // Sesuaikan lebar gambar berdasarkan parameter length
-        const canvasHeight = this.canvas.height;
-        let currentY = canvasHeight - 100;
+        this._lastLayup = layup;
 
-        // Bersihkan canvas sebelum menggambar
+        var self = this;
+        var layers = layup.layers;
+        var marginLeft = 72;
+        var marginBottom = 90;
+        var marginTop = 24;
+        var labelSpace = 120;
+        var xRangeMm = 150;
+
+        var totalMm = layers.reduce(function (sum, L) {
+            return sum + L.thickness;
+        }, 0);
+
+        var slabHeightPx = this.canvas.height - marginBottom - marginTop;
+        var mmToPxY = slabHeightPx / totalMm;
+        var slabW = Math.max(120, this.canvas.width - marginLeft - labelSpace);
+        var slabLeft = marginLeft;
+        var slabBottom = this.canvas.height - marginBottom;
+        var yMaxMm = Math.ceil(totalMm / 60) * 60;
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Gambar dari layer paling bawah ke atas
-        // Kita gunakan slice().reverse() agar tidak merubah data asli
-        layers.slice().reverse().forEach((layer) => {
-            const thicknessPx = layer.thickness * scale;
-            currentY -= thicknessPx;
+        this.drawAxes({
+            slabLeft : slabLeft,
+            slabBottom : slabBottom,
+            slabWidth : slabW,
+            yMaxMm : yMaxMm,
+            mmToPxY : mmToPxY,
+            xRangeMm : xRangeMm
+        });
 
-            // 1. Pilih gambar berdasarkan orientasi (0 horizontal, 90 vertikal)
-            const img = (layer.orientation === 0) ? this.images.parallel : this.images.perpendicular;
+        var y = slabBottom;
+        var stackBottom = y;
 
-            // 2. Gambar tekstur kayu
-            if (img.complete) {
-                this.ctx.drawImage(img, startX, currentY, drawWidth, thicknessPx);
+        layers.slice().reverse().forEach(function (layer) {
+            var h = layer.thickness * mmToPxY;
+            y -= h;
+
+            var img = layer.orientation === 0 ? self.images.parallel : self.images.perpendicular;
+
+            if (img.complete && img.naturalWidth > 0) {
+                self.ctx.drawImage(img, slabLeft, y, slabW, h);
             } else {
-                this.ctx.fillStyle = '#d2b48c'; // Fallback warna kayu
-                this.ctx.fillRect(startX, currentY, drawWidth, thicknessPx);
+                self.ctx.fillStyle = '#d2b48c';
+                self.ctx.fillRect(slabLeft, y, slabW, h);
             }
 
-            // 3. Gambar border hijau (CLT Style)
-            this.ctx.strokeStyle = '#76b82a';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(startX, currentY, drawWidth, thicknessPx);
+            self.drawLayerDivider(slabLeft, y, slabW);
 
-            // 4. Tambahkan label teks di sebelah kanan
-            this.ctx.fillStyle = '#333';
-            this.ctx.font = '12px Arial';
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(
+            self.ctx.fillStyle = '#555';
+            self.ctx.font = '12px Arial';
+            self.ctx.textAlign = 'left';
+            self.ctx.textBaseline = 'middle';
+            self.ctx.fillText(
                 layer.id + ': ' + layer.thickness + 'mm ' + layer.grade,
-                startX + drawWidth + 15,
-                currentY + (thicknessPx / 2) + 5
+                slabLeft + slabW + 12,
+                y + h / 2
             );
         });
 
-        this.drawAxes(startX, canvasHeight - 100, drawWidth);
-    },
-
-    /**
-     * Fungsi tambahan untuk menggambar sumbu (Axes)
-     */
-    drawAxes : function (x, y, w) {
-        this.ctx.strokeStyle = '#999';
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, y);
-        this.ctx.lineTo(x + w + 50, y); // Garis X
-        this.ctx.moveTo(x, y);
-        this.ctx.lineTo(x, y - 250); // Garis Y
-        this.ctx.stroke();
+        this.drawLayerDivider(slabLeft, stackBottom, slabW);
     }
 };
