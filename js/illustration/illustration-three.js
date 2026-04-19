@@ -4,25 +4,23 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 // =========================================
-// SETUP SCENE DASAR
+// SETUP SCENE
 // =========================================
 
-// Scene dengan latar belakang hitam seperti referensi
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-// Kamera perspektif — posisi negatif X dan Z agar sumbu +X tampil ke kiri-bawah
-// dan +Z tampil ke kanan-bawah (sesuai gambar referensi)
+// Kamera — posisi (-X, +Y, -Z) agar sumbu merah ke kiri-bawah dan biru ke kanan-bawah
 const kamera = new THREE.PerspectiveCamera(
     45,
     window.innerWidth / window.innerHeight,
-    0.1,
-    100
+    0.01,
+    1000
 );
 kamera.position.set(-5, 4, -5);
-kamera.lookAt(1, 0, 1.5);
+kamera.lookAt(1, 0.1, 1.5);
 
-// Renderer utama dengan antialiasing dan shadow
+// Renderer utama
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -30,7 +28,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// Renderer khusus untuk label CSS2D (dimensi teks)
+// Renderer label teks CSS2D
 const rendererLabel = new CSS2DRenderer();
 rendererLabel.setSize(window.innerWidth, window.innerHeight);
 rendererLabel.domElement.style.position = 'absolute';
@@ -38,311 +36,309 @@ rendererLabel.domElement.style.top = '0px';
 rendererLabel.domElement.style.pointerEvents = 'none';
 document.body.appendChild(rendererLabel.domElement);
 
-// Kontrol orbit agar bisa diputar dan di-zoom
+// Kontrol orbit
 const kontrolOrbit = new OrbitControls(kamera, renderer.domElement);
 kontrolOrbit.enableDamping = true;
 kontrolOrbit.dampingFactor = 0.05;
-kontrolOrbit.target.set(1, 0, 1.5);
+kontrolOrbit.target.set(1, 0.1, 1.5);
+kontrolOrbit.update(); // sinkronkan kamera ke target sejak awal
 
 // =========================================
 // PENCAHAYAAN
 // =========================================
 
-// Cahaya ambient untuk pencahayaan dasar yang merata
-const cahayaAmbient = new THREE.AmbientLight(0xffffff, 0.55);
+// Cahaya ambient merata
+const cahayaAmbient = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(cahayaAmbient);
 
-// Cahaya utama dari sudut kiri-atas belakang (menghasilkan bayangan di kanan-bawah)
-const cahayaUtama = new THREE.DirectionalLight(0xffffff, 1.4);
-cahayaUtama.position.set(-4, 8, -3);
+// Cahaya utama dari kiri-atas-belakang (sesuai gambar referensi)
+const cahayaUtama = new THREE.DirectionalLight(0xffffff, 1.5);
+cahayaUtama.position.set(-5, 10, -3);
 cahayaUtama.castShadow = true;
 cahayaUtama.shadow.mapSize.set(2048, 2048);
-cahayaUtama.shadow.camera.near = 0.5;
-cahayaUtama.shadow.camera.far = 30;
-cahayaUtama.shadow.camera.left = -6;
+cahayaUtama.shadow.camera.left = -8;
 cahayaUtama.shadow.camera.right = 8;
-cahayaUtama.shadow.camera.top = 6;
-cahayaUtama.shadow.camera.bottom = -6;
+cahayaUtama.shadow.camera.top = 8;
+cahayaUtama.shadow.camera.bottom = -8;
+cahayaUtama.shadow.camera.far = 30;
 scene.add(cahayaUtama);
 
-// Cahaya isi dari depan-kanan agar bagian sisi tidak terlalu gelap
-const cahayaIsi = new THREE.DirectionalLight(0xffffff, 0.35);
-cahayaIsi.position.set(3, 2, 3);
+// Cahaya isi agar face samping tidak terlalu gelap
+const cahayaIsi = new THREE.DirectionalLight(0xffffff, 0.25);
+cahayaIsi.position.set(4, 3, 4);
 scene.add(cahayaIsi);
 
 // =========================================
 // SUMBU KOORDINAT
+// Diletakkan di pojok kanan-bawah dari strip kanan sesuai referensi
 // =========================================
 
-// Menampilkan helper sumbu X (merah), Y (hijau), Z (biru) seperti pada referensi.
-// Diletakkan di pojok kanan-jauh papan kanan (X=0.75, Z=4) agar tampak di sudut
-// kanan-bawah gambar, persis seperti pada gambar referensi.
 const sumbuHelper = new THREE.AxesHelper(1.5);
 sumbuHelper.position.set(0.75, 0, 4);
 scene.add(sumbuHelper);
 
 // =========================================
-// FUNGSI BANTU ANOTASI DIMENSI
+// FUNGSI ANOTASI DIMENSI
 // =========================================
 
-// Membuat label teks dimensi yang mengambang di ruang 3D
-function buatLabelDimensi(teks, posisi) {
+function buatLabel(teks, posisi) {
     const div = document.createElement('div');
     div.textContent = teks;
-    div.style.cssText = [
-        'color: white',
-        'font-size: 13px',
-        'font-family: Arial, sans-serif',
-        'font-weight: bold',
-        'white-space: nowrap',
-        'text-shadow: 1px 1px 3px rgba(0,0,0,0.9)',
-        'pointer-events: none',
-    ].join(';');
-
-    const objLabel = new CSS2DObject(div);
-    objLabel.position.copy(posisi);
-    scene.add(objLabel);
+    div.style.cssText = 'color:white;font-size:13px;font-family:Arial,sans-serif;font-weight:bold;' +
+        'white-space:nowrap;text-shadow:1px 1px 3px rgba(0,0,0,0.95);pointer-events:none;';
+    const obj = new CSS2DObject(div);
+    obj.position.copy(posisi);
+    scene.add(obj);
 }
 
-// Membuat titik kecil putih di ujung garis dimensi
-function buatTitikDimensi(posisi) {
-    const geo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const titik = new THREE.Mesh(geo, mat);
-    titik.position.copy(posisi);
-    scene.add(titik);
+function buatTitik(posisi) {
+    const m = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.04, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    m.position.copy(posisi);
+    scene.add(m);
 }
 
-// Membuat garis putih penghubung dua titik dimensi
-function buatGarisDimensi(dari, ke) {
-    const geo = new THREE.BufferGeometry().setFromPoints([dari, ke]);
+function buatGaris(a, b) {
+    const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
     const mat = new THREE.LineBasicMaterial({ color: 0xffffff });
-    const garis = new THREE.Line(geo, mat);
-    scene.add(garis);
+    scene.add(new THREE.Line(geo, mat));
 }
 
-// Menggabungkan pembuatan titik, garis, dan label sekaligus
-function buatAnotasiLengkap(teks, titik1, titik2, posisiLabel) {
-    buatTitikDimensi(titik1);
-    buatTitikDimensi(titik2);
-    buatGarisDimensi(titik1, titik2);
-    buatLabelDimensi(teks, posisiLabel);
+function anotasi(teks, a, b, labelPos) {
+    buatTitik(a);
+    buatTitik(b);
+    buatGaris(a, b);
+    buatLabel(teks, labelPos);
 }
 
 // =========================================
-// PEMBANGUNAN STRUKTUR KAYU
+// MATERIAL PER-MUKA DENGAN UV YANG TEPAT
+//
+// Garis serat kayu pada face samping (cross-section) terlihat padat
+// karena tekstur di-tile berkali-kali dalam arah U (panjang face).
+// Setiap tile mewakili 0.2m × 0.2m agar line-serat sesuai referensi.
 // =========================================
 
-// Ketinggian semua papan kayu = 0.2m
-const tinggiPapan = 0.2;
+const SKALA_UV = 0.2; // 1 tile tekstur = 0.2 m (memberikan grain padat di face samping)
 
-// Koordinat struktur (berdasarkan gambar referensi):
-//   Papan kiri   : X:0–2, Y:0–0.2, Z:-1–1   (2m × 0.2m × 2m)
-//   Papan kanan  : X:0.75–1.25, Y:0–0.2, Z:1–4   (0.5m × 0.2m × 3m)
-//   Step sambungan : X:0.8–1.2, Y:0.2–0.22, Z:0.75–1.25
+function buatMaterial(tekstur, uRepeat, vRepeat) {
+    const t = tekstur.clone();
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(uRepeat, vRepeat);
+    t.needsUpdate = true;
+    return new THREE.MeshStandardMaterial({
+        map: t,
+        roughness: 0.85,
+        metalness: 0.0,
+    });
+}
 
-function buatStrukturKayu(material) {
-    // Papan kiri lebar: 2m(X) × 0.2m(Y) × 2m(Z)
-    const geoPapanKiri = new THREE.BoxGeometry(2, tinggiPapan, 2);
-    const meshPapanKiri = new THREE.Mesh(geoPapanKiri, material);
-    meshPapanKiri.position.set(1, tinggiPapan / 2, 0);
-    meshPapanKiri.castShadow = true;
-    meshPapanKiri.receiveShadow = true;
-    scene.add(meshPapanKiri);
+// Membuat array 6 material untuk BoxGeometry(w, h, d):
+// indeks 0 = +X, 1 = -X, 2 = +Y(atas), 3 = -Y(bawah), 4 = +Z, 5 = -Z
+function buatMaterial6Muka(tekstur, w, h, d) {
+    // Face +X/-X mencakup dimensi (d × h) dalam UV
+    const matSampingXpos = buatMaterial(tekstur, d / SKALA_UV, h / SKALA_UV);
+    const matSampingXneg = buatMaterial(tekstur, d / SKALA_UV, h / SKALA_UV);
+    // Face atas/bawah (+Y/-Y) mencakup (w × d)
+    const matAtas = buatMaterial(tekstur, w / (SKALA_UV * 2), d / (SKALA_UV * 2));
+    const matBawah = buatMaterial(tekstur, w / (SKALA_UV * 2), d / (SKALA_UV * 2));
+    // Face +Z/-Z mencakup (w × h)
+    const matSampingZpos = buatMaterial(tekstur, w / SKALA_UV, h / SKALA_UV);
+    const matSampingZneg = buatMaterial(tekstur, w / SKALA_UV, h / SKALA_UV);
 
-    // Papan kanan sempit panjang: 0.5m(X) × 0.2m(Y) × 3m(Z)
-    const geoPapanKanan = new THREE.BoxGeometry(0.5, tinggiPapan, 3);
-    const meshPapanKanan = new THREE.Mesh(geoPapanKanan, material);
-    meshPapanKanan.position.set(1, tinggiPapan / 2, 2.5);
-    meshPapanKanan.castShadow = true;
-    meshPapanKanan.receiveShadow = true;
-    scene.add(meshPapanKanan);
+    return [matSampingXpos, matSampingXneg, matAtas, matBawah, matSampingZpos, matSampingZneg];
+}
 
-    // Step kecil di titik sambungan antar papan: 0.4m(X) × 0.02m(Y) × 0.5m(Z)
-    const geoStep = new THREE.BoxGeometry(0.4, 0.02, 0.5);
-    const meshStep = new THREE.Mesh(geoStep, material);
-    meshStep.position.set(1, tinggiPapan + 0.01, 1);
+// =========================================
+// MEMBANGUN STRUKTUR KAYU T-SHAPE
+//
+// Layout (sumbu Y ke atas, kamera dari arah -X, +Y, -Z):
+//   Papan kiri  : X:0–2, Y:0–0.2, Z:-1–1   (2m × 0.2m × 2m)
+//   Papan kanan : X:0.75–1.25, Y:0–0.2, Z:1–4  (0.5m × 0.2m × 3m)
+//   Step        : X:0.8–1.2, Y:0.2–0.22, Z:0.75–1.25  (0.4m × 0.02m × 0.5m)
+// =========================================
+
+const TINGGI = 0.2; // ketinggian papan kayu
+
+function buatStruktur(tekstur) {
+    const mat6Kiri = buatMaterial6Muka(tekstur, 2, TINGGI, 2);
+    const mat6Kanan = buatMaterial6Muka(tekstur, 0.5, TINGGI, 3);
+    const mat6Step = buatMaterial6Muka(tekstur, 0.4, 0.02, 0.5);
+
+    // Papan kiri lebar: 2m × 0.2m × 2m
+    const meshKiri = new THREE.Mesh(new THREE.BoxGeometry(2, TINGGI, 2), mat6Kiri);
+    meshKiri.position.set(1, TINGGI / 2, 0);
+    meshKiri.castShadow = true;
+    meshKiri.receiveShadow = true;
+    scene.add(meshKiri);
+
+    // Papan kanan sempit: 0.5m × 0.2m × 3m
+    const meshKanan = new THREE.Mesh(new THREE.BoxGeometry(0.5, TINGGI, 3), mat6Kanan);
+    meshKanan.position.set(1, TINGGI / 2, 2.5);
+    meshKanan.castShadow = true;
+    meshKanan.receiveShadow = true;
+    scene.add(meshKanan);
+
+    // Step sambungan: 0.4m × 0.02m × 0.5m
+    const meshStep = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.5), mat6Step);
+    meshStep.position.set(1, TINGGI + 0.01, 1);
     meshStep.castShadow = true;
     meshStep.receiveShadow = true;
     scene.add(meshStep);
 
-    // Tambahkan semua anotasi dimensi
-    tambahSemuaAnotasi();
+    tambahAnotasi();
 }
 
 // =========================================
-// ANOTASI DIMENSI SESUAI GAMBAR REFERENSI
+// ANOTASI DIMENSI
 // =========================================
 
-function tambahSemuaAnotasi() {
-    const t = tinggiPapan; // 0.2
+function tambahAnotasi() {
+    const t = TINGGI;
 
     // --- Papan kiri ---
+    anotasi('2m',
+        new THREE.Vector3(0, t, -1), new THREE.Vector3(2, t, -1),
+        new THREE.Vector3(1, t + 0.15, -1.25));
 
-    // "2m" — lebar X papan kiri (edge atas, sisi Z = -1)
-    buatAnotasiLengkap(
-        '2m',
-        new THREE.Vector3(0, t, -1),
-        new THREE.Vector3(2, t, -1),
-        new THREE.Vector3(1, t + 0.15, -1.25)
-    );
+    anotasi('2m',
+        new THREE.Vector3(0, t, -1), new THREE.Vector3(0, t, 1),
+        new THREE.Vector3(-0.35, t + 0.1, 0));
 
-    // "2m" — kedalaman Z papan kiri (edge kiri X = 0, atas)
-    buatAnotasiLengkap(
-        '2m',
-        new THREE.Vector3(0, t, -1),
-        new THREE.Vector3(0, t, 1),
-        new THREE.Vector3(-0.35, t + 0.1, 0)
-    );
-
-    // "0.2m" — ketinggian papan kiri (edge depan-kanan X=2, Z=-1)
-    buatAnotasiLengkap(
-        '0.2m',
-        new THREE.Vector3(2, 0, -1),
-        new THREE.Vector3(2, t, -1),
-        new THREE.Vector3(2.12, t / 2, -1.1)
-    );
+    anotasi('0.2m',
+        new THREE.Vector3(2, 0, -1), new THREE.Vector3(2, t, -1),
+        new THREE.Vector3(2.12, t / 2, -1.1));
 
     // --- Papan kanan ---
+    anotasi('3m',
+        new THREE.Vector3(0.75, t, 1), new THREE.Vector3(0.75, t, 4),
+        new THREE.Vector3(0.5, t + 0.15, 2.5));
 
-    // "3m" — panjang Z papan kanan (edge atas, sisi X = 0.75)
-    buatAnotasiLengkap(
-        '3m',
-        new THREE.Vector3(0.75, t, 1),
-        new THREE.Vector3(0.75, t, 4),
-        new THREE.Vector3(0.5, t + 0.15, 2.5)
-    );
+    anotasi('0.5m',
+        new THREE.Vector3(0.75, t, 4), new THREE.Vector3(1.25, t, 4),
+        new THREE.Vector3(1, t + 0.15, 4.25));
 
-    // "0.5m" — lebar X papan kanan (edge ujung Z = 4, atas)
-    buatAnotasiLengkap(
-        '0.5m',
-        new THREE.Vector3(0.75, t, 4),
-        new THREE.Vector3(1.25, t, 4),
-        new THREE.Vector3(1, t + 0.15, 4.2)
-    );
-
-    // "0.2m" — ketinggian papan kanan (edge kanan X = 1.25, Z = 4)
-    buatAnotasiLengkap(
-        '0.2m',
-        new THREE.Vector3(1.25, 0, 4),
-        new THREE.Vector3(1.25, t, 4),
-        new THREE.Vector3(1.35, t / 2, 4.1)
-    );
+    anotasi('0.2m',
+        new THREE.Vector3(1.25, 0, 4), new THREE.Vector3(1.25, t, 4),
+        new THREE.Vector3(1.35, t / 2, 4.12));
 
     // --- Step sambungan ---
+    anotasi('0.4m',
+        new THREE.Vector3(0.8, t + 0.02, 0.75), new THREE.Vector3(1.2, t + 0.02, 0.75),
+        new THREE.Vector3(1, t + 0.13, 0.62));
 
-    // "0.4m" — lebar X step (edge atas step, sisi Z = 0.75)
-    buatAnotasiLengkap(
-        '0.4m',
-        new THREE.Vector3(0.8, t + 0.02, 0.75),
-        new THREE.Vector3(1.2, t + 0.02, 0.75),
-        new THREE.Vector3(1, t + 0.13, 0.65)
-    );
-
-    // "0.02m" — ketinggian step (edge kanan X = 1.2, Z = 0.75)
-    buatAnotasiLengkap(
-        '0.02m',
-        new THREE.Vector3(1.2, t, 0.75),
-        new THREE.Vector3(1.2, t + 0.02, 0.75),
-        new THREE.Vector3(1.28, t + 0.01, 0.65)
-    );
+    anotasi('0.02m',
+        new THREE.Vector3(1.2, t, 0.75), new THREE.Vector3(1.2, t + 0.02, 0.75),
+        new THREE.Vector3(1.3, t + 0.01, 0.62));
 
     // --- Dimensi bawah (bottom face) ---
+    anotasi('0.5m',
+        new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0.5),
+        new THREE.Vector3(-0.28, -0.05, 0.75));
 
-    // "0.5m" — bagian kiri bawah (Z dari 1 ke 0.5, edge X = 0)
-    buatAnotasiLengkap(
-        '0.5m',
-        new THREE.Vector3(0, 0, 1),
-        new THREE.Vector3(0, 0, 0.5),
-        new THREE.Vector3(-0.25, -0.05, 0.75)
-    );
+    anotasi('0.54m',
+        new THREE.Vector3(0, 0, 0.5), new THREE.Vector3(0, 0, -0.04),
+        new THREE.Vector3(-0.32, -0.05, 0.23));
 
-    // "0.54m" — bagian tengah bawah (Z dari 0.5 ke -0.04, edge X = 0)
-    buatAnotasiLengkap(
-        '0.54m',
-        new THREE.Vector3(0, 0, 0.5),
-        new THREE.Vector3(0, 0, -0.04),
-        new THREE.Vector3(-0.28, -0.05, 0.23)
-    );
-
-    // "0.5m" — lebar X papan kanan dilihat dari bawah (X dari 0.75 ke 1.25, Z = 4)
-    buatAnotasiLengkap(
-        '0.5m',
-        new THREE.Vector3(0.75, 0, 4),
-        new THREE.Vector3(1.25, 0, 4),
-        new THREE.Vector3(0.9, -0.1, 4.2)
-    );
+    anotasi('0.5m',
+        new THREE.Vector3(0.75, 0, 4), new THREE.Vector3(1.25, 0, 4),
+        new THREE.Vector3(0.9, -0.1, 4.25));
 }
 
 // =========================================
-// MEMUAT MODEL FBX DAN MATERIAL KAYU
+// MEMUAT FBX — coba langsung tampilkan dulu,
+// jika model FBX sudah berbentuk T-shape maka hasilnya langsung tepat.
+// Jika FBX berupa plank/box, ekstrak teksturnya dan bangun geometri manual.
 // =========================================
 
 const pemuatFBX = new FBXLoader();
 
 pemuatFBX.load(
     'model/wood/wood.fbx',
-    function (objekFBX) {
-        let materialKayu = null;
 
-        // Menelusuri semua node dalam FBX untuk menemukan material kayu
-        objekFBX.traverse(function (anak) {
-            if (anak.isMesh && !materialKayu) {
-                materialKayu = Array.isArray(anak.material)
-                    ? anak.material[0]
-                    : anak.material;
-            }
-        });
+    function onLoad(objekFBX) {
+        // Hitung bounding box model FBX
+        const kotakBatas = new THREE.Box3().setFromObject(objekFBX);
+        const ukuran = new THREE.Vector3();
+        kotakBatas.getSize(ukuran);
 
-        if (materialKayu) {
-            // Mengaktifkan pengulangan tekstur agar tampil lebih natural
-            if (materialKayu.map) {
-                materialKayu.map.wrapS = THREE.RepeatWrapping;
-                materialKayu.map.wrapT = THREE.RepeatWrapping;
-            }
-            if (materialKayu.normalMap) {
-                materialKayu.normalMap.wrapS = THREE.RepeatWrapping;
-                materialKayu.normalMap.wrapT = THREE.RepeatWrapping;
-            }
-            buatStrukturKayu(materialKayu);
+        // Jika model sudah dalam satuan cm (umum di FBX), konversi ke meter
+        const perluKonversi = ukuran.x > 10 || ukuran.z > 10;
+        if (perluKonversi) {
+            objekFBX.scale.setScalar(0.01);
+            kotakBatas.setFromObject(objekFBX);
+            kotakBatas.getSize(ukuran);
+        }
+
+        // Cek apakah model sudah berbentuk T-shape sesuai dimensi yang diharapkan
+        // (toleransi ±20%): lebar ≈ 2m, kedalaman ≈ 4–5m, tinggi ≈ 0.2m
+        const bentukTShape =
+            ukuran.x >= 0.3 && ukuran.x <= 3.0 &&
+            ukuran.y >= 0.1 && ukuran.y <= 0.35 &&
+            ukuran.z >= 2.5 && ukuran.z <= 6.0;
+
+        if (bentukTShape) {
+            // Model FBX sudah berbentuk T-shape — tampilkan langsung
+            objekFBX.traverse(function (anak) {
+                if (anak.isMesh) {
+                    anak.castShadow = true;
+                    anak.receiveShadow = true;
+                }
+            });
+
+            // Geser model agar center bounding box ada di (1, 0.1, 1.5)
+            // sesuai dengan titik bidik kamera dan target orbit
+            const pusatBatas = new THREE.Vector3();
+            kotakBatas.getCenter(pusatBatas);
+            const pusatTarget = new THREE.Vector3(1, 0.1, 1.5);
+            objekFBX.position.copy(pusatTarget.clone().sub(pusatBatas));
+
+            scene.add(objekFBX);
+            tambahAnotasi();
+
         } else {
-            // Tidak ada material di FBX — pakai tekstur langsung
-            buatDenganTeksturLangsung();
+            // FBX bukan T-shape — ekstrak tekstur lalu bangun geometri manual
+            let teksturDifus = null;
+
+            objekFBX.traverse(function (anak) {
+                if (anak.isMesh && !teksturDifus) {
+                    const mat = Array.isArray(anak.material)
+                        ? anak.material[0]
+                        : anak.material;
+                    if (mat && mat.map) {
+                        teksturDifus = mat.map;
+                    }
+                }
+            });
+
+            if (teksturDifus) {
+                buatStruktur(teksturDifus);
+            } else {
+                muatTeksturLangsung();
+            }
         }
     },
+
     undefined,
-    function (kesalahan) {
-        // Fallback jika FBX gagal dimuat
-        console.warn('FBX gagal dimuat, mencoba tekstur langsung:', kesalahan);
-        buatDenganTeksturLangsung();
+
+    function onError(err) {
+        console.warn('FBX gagal dimuat, menggunakan tekstur langsung:', err);
+        muatTeksturLangsung();
     }
 );
 
-// Fallback: memuat tekstur kayu secara langsung tanpa FBX
-function buatDenganTeksturLangsung() {
-    const pemuatTekstur = new THREE.TextureLoader();
-
-    const teksturWarna = pemuatTekstur.load('model/wood/wood.fbm/Color_A02.jpg');
-    const teksturNormal = pemuatTekstur.load('model/wood/wood.fbm/NormalMap.png');
-
-    teksturWarna.wrapS = THREE.RepeatWrapping;
-    teksturWarna.wrapT = THREE.RepeatWrapping;
-    teksturNormal.wrapS = THREE.RepeatWrapping;
-    teksturNormal.wrapT = THREE.RepeatWrapping;
-
-    const material = new THREE.MeshStandardMaterial({
-        map: teksturWarna,
-        normalMap: teksturNormal,
-        roughness: 0.85,
-        metalness: 0.0,
-    });
-
-    // Struktur langsung dibangun; tekstur akan otomatis teraplikasi saat selesai dimuat
-    buatStrukturKayu(material);
+// Memuat tekstur langsung dari folder fbm (fallback jika FBX bermasalah)
+function muatTeksturLangsung() {
+    const loader = new THREE.TextureLoader();
+    const teksturWarna = loader.load('model/wood/wood.fbm/Color_A02.jpg');
+    teksturWarna.wrapS = teksturWarna.wrapT = THREE.RepeatWrapping;
+    buatStruktur(teksturWarna);
 }
 
 // =========================================
-// RESIZE HANDLER
+// RESIZE
 // =========================================
 
 window.addEventListener('resize', function () {
@@ -360,7 +356,6 @@ function animasi() {
     requestAnimationFrame(animasi);
     kontrolOrbit.update();
     renderer.render(scene, kamera);
-    // Merender label CSS di atas canvas utama
     rendererLabel.render(scene, kamera);
 }
 
