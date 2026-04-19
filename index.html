@@ -6,53 +6,23 @@
     <title>Layup Drawer</title>
 </head>
 <body>
-    <canvas width="500" height="800" id="playground"></canvas>
+    <canvas width="834" height="450" id="playground"></canvas>
 
     <script src="js/layup-drawer.js"></script>
     <script>
-        var cltLayup = {
-            t1 : {
-                label : 'T1',
-                thickness : 45, // in mm
-                angle : 0,      // in degree
-                grade : 'MGP10',
-            },
-
-            t2 : {
-                label : 'T2',
-                thickness : 30, // in mm
-                angle : 90,     // in degree
-                grade : 'MGP6',
-            },
-
-            t3 : {
-                label : 'T3',
-                thickness : 30, // in mm
-                angle : 0,      // in degree
-                grade : 'MGP5',
-            },
-
-            t4 : {
-                label : 'T4',
-                thickness : 30, // in mm
-                angle : 90,     // in degree
-                grade : 'MGP6',
-            },
-
-            t5 : {
-                label : 'T5',
-                thickness : 45, // in mm
-                angle : 0,      // in degree
-                grade : 'MGP10',
-            },
-
+        var layup = {
+            layers : [
+                { id : 't1', thickness : 42.5, orientation : 0,  grade : 'MGP10' },
+                { id : 't2', thickness : 45,   orientation : 90, grade : 'MGP6' },
+                { id : 't3', thickness : 45,   orientation : 0,  grade : 'MGP6' },
+                { id : 't4', thickness : 45,   orientation : 90, grade : 'MGP6' },
+                { id : 't5', thickness : 42.5, orientation : 0,  grade : 'MGP10' }
+            ]
         };
 
-        var layupDrawer = new LayupDrawer();
-        var playground = document.getElementById('playground');
-
-        layupDrawer.init(playground);
-        layupDrawer.drawLayup(cltLayup);
+        var drawer = new LayupDrawer();
+        drawer.init(document.getElementById('playground'));
+        drawer.drawLayup(layup);
     </script>
 </body>
 </html>
